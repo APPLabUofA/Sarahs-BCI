@@ -105,7 +105,7 @@ while isempty(result)
 end
 %create a new EEG inlet
 disp('Good job! Opening a EEG inlet...');
-inlet_EEG = lsl_inlet(result{1});
+inlet_EEG = lsl_inlet(result{2});
 
 
 % #########################################################################
@@ -122,18 +122,26 @@ screenNumber = max(Screen('Screens')); % Get the maximum screen number i.e. get 
 
 
 % -------------------------------------------------------------------------
-% Set-up sounds
-InitializePsychSound;
-pahandle = PsychPortAudio('Open', [], [], 0, p.sampRate, p.nrchannels);
+%% Set-up sounds
 
-% build the sounds
-% base tone:
-t = linspace(0,p.dur,p.dur*p.sampRate);
-% ramp starts at 0, becomes 1 over the course of .05s and ramps down again
-% at the end
-ramp = ones(size(t));
-ramp(t<p.rampDur) = linspace(0,1,sum(t<p.rampDur));
-ramp(t>p.dur-p.rampDur) = linspace(1,0,sum(t>p.dur-p.rampDur));
+p.nrchannels = 2; % select two channels
+p.freq = 22050;  %Hz 2*8192   16384; Select playback sampling rate of 44100 Hz
+repetitions = 0;
+
+[forestData, forestFreq ] = audioread('M:\Experiments\BCI\Audio_files\rainforest_long.wav');
+[waterData, waterFreq ] = audioread('M:\Experiments\BCI\Audio_files\waterfall_long.wav');
+
+% Open sound device 'pahandle' with specified freq'ency and number of audio
+% channels for playback in timing precision mode on the default audio
+% device:
+InitializePsychSound(1);
+
+pahandle = PsychPortAudio('Open', [], [], 0, p.freq, p.nrchannels);
+pahandle2 = PsychPortAudio('Open', [], [], 0, p.freq, p.nrchannels);
+
+PsychPortAudio('FillBuffer', pahandle, forestData');
+PsychPortAudio('FillBuffer', pahandle2, waterData');
+
 
 % -------------------------------------------------------------------------
 
@@ -163,9 +171,9 @@ centerY = screenY * 0.5; % center of screen in Y direction
 trigger_size = [0 0 1 1]; %use [0 0 1 1] for eeg, 100 100 for photodiode
 
 % Feedback drawing
-delta = 720; 
+delta = 150; 
 baseRect = [0 delta screenX screenY]; %(left,top,right,bottom)
-maxChange = 3; %change of feedback bar
+maxChange = 10; %change of feedback bar
 
 % Make a base Rect to use for the base line marker 
 baseRect2 = [0 0 12 12];
@@ -269,11 +277,16 @@ chunkCount = 1; % Keep track of number of data chunks
 
 % HideCursor; %hide cursor
 
-% Screen('FillRect', onScreen, gray);
-% Screen('DrawLines',onScreen,[-7 7 0 0; 0 0 -7 7],1,0,[centerX,centerY],0);  %Print the fixation
-% Screen('FillRect',onScreen,Vpixx2Vamp(20+Info.train),trigger_size); %trigger for first block
-% Screen('Flip',onScreen,[],0); %flip it to the screen
-% Screen(onScreen,'Flip'); %flip it to the screen
+Screen('FillRect', onScreen, gray);
+Screen('DrawLines',onScreen,[-7 7 0 0; 0 0 -7 7],1,0,[centerX,centerY],0);  %Print the fixation
+Screen('FillRect',onScreen,Vpixx2Vamp(20+Info.train),trigger_size); %trigger for first block
+Screen('Flip',onScreen,[],0); %flip it to the screen
+Screen(onScreen,'Flip'); %flip it to the screen
+
+% Start sounds
+startTime = PsychPortAudio('Start', pahandle, repetitions, 0, 1, inf, 0); %background
+startTime2 = PsychPortAudio('Start', pahandle2, repetitions, 0, 1, inf, 0); %waterfall
+PsychPortAudio('Volume', pahandle2, [0], []); %turn down waterfall sound
 
 
 
